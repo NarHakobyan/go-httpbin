@@ -8,6 +8,13 @@ with the endpoints of [httpbin.org][ht] locally in a [`net/http/httptest.Server`
 
 This way, you can write tests without relying on an external dependency like [httpbin.org][ht].
 
+### httpbin works from the command line as well:
+
+```bash
+$ go get -u github.com/NarHakobyan/go-httpbin/cmd/httpbin
+$ httpbin -host :8080 -log
+```
+
 ## Endpoints
 
 - `/ip` Returns Origin IP.
@@ -85,13 +92,6 @@ func TestDownload(t *testing.T) {
     // read from an actual HTTP server hosted locally
     // test whatever you are going to test...
 }
-```
-
-go-httpbin works from the command line as well:
-
-```bash
-$ go get -u github.com/NarHakobyan/go-httpbin/cmd/httpbin
-$ httpbin -host :8080 -log
 ```
 
 # Development
