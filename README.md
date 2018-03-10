@@ -91,7 +91,7 @@ go-httpbin works from the command line as well:
 
 ```bash
 $ go get -u github.com/NarHakobyan/go-httpbin/cmd/httpbin
-$ httpbin -host :8080
+$ httpbin -host :8080 -log
 ```
 
 # Development
