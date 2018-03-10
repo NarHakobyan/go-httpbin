@@ -7,17 +7,26 @@ import (
 	"net/url"
 
 	"github.com/pkg/errors"
+	"github.com/hokaccha/go-prettyjson"
+	"log"
 )
 
-func writeJSON(w io.Writer, v interface{}) error {
+func writeJSON(w io.Writer, v interface{}, printLogs *bool) error {
+	if *printLogs {
+		s, _ := prettyjson.Marshal(v)
+		log.Println(string(s))
+	}
 	e := json.NewEncoder(w)
 	e.SetIndent("", "  ")
 	return errors.Wrap(e.Encode(v), "failed to encode JSON")
 }
 
-func writeErrorJSON(w http.ResponseWriter, err error) {
+func writeErrorJSON(w http.ResponseWriter, err error, printLogs *bool) {
+	if *printLogs {
+		log.Println(err.Error())
+	}
 	w.WriteHeader(http.StatusInternalServerError)
-	_ = writeJSON(w, errorResponse{errObj{err.Error()}}) // ignore error, can't do anything
+	_ = writeJSON(w, errorResponse{errObj{err.Error()}}, printLogs) // ignore error, can't do anything
 }
 
 func getHeaders(r *http.Request) map[string]string {

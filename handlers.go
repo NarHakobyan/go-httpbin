@@ -22,6 +22,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
+	"log"
 )
 
 var (
@@ -36,8 +37,11 @@ var (
 	StreamInterval = 1 * time.Second
 )
 
+var logs *bool
+
 // GetMux returns the mux with handlers for httpbin endpoints registered.
-func GetMux() *mux.Router {
+func GetMux(printLos *bool) *mux.Router {
+	logs = printLos
 	r := mux.NewRouter()
 	r.HandleFunc(`/`, HomeHandler).Methods(http.MethodGet, http.MethodHead)
 	r.HandleFunc(`/ip`, IPHandler).Methods(http.MethodGet, http.MethodHead)
@@ -93,22 +97,22 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 // IPHandler returns Origin IP.
 func IPHandler(w http.ResponseWriter, r *http.Request) {
 	h, _, _ := net.SplitHostPort(r.RemoteAddr)
-	if err := writeJSON(w, ipResponse{h}); err != nil {
-		writeErrorJSON(w, errors.Wrap(err, "failed to write json")) // TODO handle this error in writeJSON(w,v)
+	if err := writeJSON(w, ipResponse{h}, logs); err != nil {
+		writeErrorJSON(w, errors.Wrap(err, "failed to write json"), logs) // TODO handle this error in writeJSON(w,v)
 	}
 }
 
 // UserAgentHandler returns user agent.
 func UserAgentHandler(w http.ResponseWriter, r *http.Request) {
-	if err := writeJSON(w, userAgentResponse{r.UserAgent()}); err != nil {
-		writeErrorJSON(w, errors.Wrap(err, "failed to write json"))
+	if err := writeJSON(w, userAgentResponse{r.UserAgent()}, logs); err != nil {
+		writeErrorJSON(w, errors.Wrap(err, "failed to write json"), logs)
 	}
 }
 
 // HeadersHandler returns user agent.
 func HeadersHandler(w http.ResponseWriter, r *http.Request) {
-	if err := writeJSON(w, headersResponse{getHeaders(r)}); err != nil {
-		writeErrorJSON(w, errors.Wrap(err, "failed to write json"))
+	if err := writeJSON(w, headersResponse{getHeaders(r)}, logs); err != nil {
+		writeErrorJSON(w, errors.Wrap(err, "failed to write json"), logs)
 	}
 }
 
@@ -122,8 +126,8 @@ func GetHandler(w http.ResponseWriter, r *http.Request) {
 		Args:            flattenValues(r.URL.Query()),
 	}
 
-	if err := writeJSON(w, v); err != nil {
-		writeErrorJSON(w, errors.Wrap(err, "failed to write json"))
+	if err := writeJSON(w, v, logs); err != nil {
+		writeErrorJSON(w, errors.Wrap(err, "failed to write json"), logs)
 	}
 }
 
@@ -138,6 +142,9 @@ func RedirectHandler(w http.ResponseWriter, r *http.Request) {
 		loc = "/get"
 	} else {
 		loc = fmt.Sprintf("/redirect/%d", i-1)
+	}
+	if *logs {
+		log.Println("Redirect", loc)
 	}
 	w.Header().Set("Location", loc)
 	w.WriteHeader(http.StatusFound)
@@ -155,6 +162,9 @@ func AbsoluteRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		loc = fmt.Sprintf("/absolute-redirect/%d", i-1)
 	}
+	if *logs {
+		log.Println("AbsoluteRedirect", "http://"+r.Host+loc)
+	}
 
 	w.Header().Set("Location", "http://"+r.Host+loc)
 	w.WriteHeader(http.StatusFound)
@@ -164,6 +174,9 @@ func AbsoluteRedirectHandler(w http.ResponseWriter, r *http.Request) {
 // the url query parameter
 func RedirectToHandler(w http.ResponseWriter, r *http.Request) {
 	u := mux.Vars(r)["url"]
+	if *logs {
+		log.Println("RedirectTo", u)
+	}
 	w.Header().Set("Location", u)
 	w.WriteHeader(http.StatusFound)
 }
@@ -171,6 +184,10 @@ func RedirectToHandler(w http.ResponseWriter, r *http.Request) {
 // StatusHandler returns a proper response for provided status code
 func StatusHandler(w http.ResponseWriter, r *http.Request) {
 	code, _ := strconv.Atoi(mux.Vars(r)["code"])
+
+	if *logs {
+		log.Println("Status", code)
+	}
 
 	statusWritten := false
 	switch code {
@@ -243,6 +260,10 @@ func BytesHandler(w http.ResponseWriter, r *http.Request) {
 func DelayHandler(w http.ResponseWriter, r *http.Request) {
 	n, _ := strconv.ParseFloat(mux.Vars(r)["n"], 64) // shouldn't fail due to route pattern
 
+	if *logs {
+		log.Println("Delay", n)
+	}
+
 	// allow only millisecond precision
 	duration := time.Millisecond * time.Duration(n*float64(time.Second/time.Millisecond))
 	if duration > DelayMax {
@@ -256,6 +277,9 @@ func DelayHandler(w http.ResponseWriter, r *http.Request) {
 func StreamHandler(w http.ResponseWriter, r *http.Request) {
 	n, _ := strconv.Atoi(mux.Vars(r)["n"]) // shouldn't fail due to route pattern
 	nl := []byte{'\n'}
+	if *logs {
+		log.Println("Stream")
+	}
 	// allow only millisecond precision
 	for i := 0; i < n; i++ {
 		time.Sleep(StreamInterval)
@@ -273,8 +297,8 @@ func StreamHandler(w http.ResponseWriter, r *http.Request) {
 
 // CookiesHandler returns the cookies provided in the request.
 func CookiesHandler(w http.ResponseWriter, r *http.Request) {
-	if err := writeJSON(w, cookiesResponse{getCookies(r.Cookies())}); err != nil {
-		writeErrorJSON(w, errors.Wrap(err, "failed to write json"))
+	if err := writeJSON(w, cookiesResponse{getCookies(r.Cookies())}, logs); err != nil {
+		writeErrorJSON(w, errors.Wrap(err, "failed to write json"), logs)
 	}
 }
 
@@ -288,6 +312,9 @@ func SetCookiesHandler(w http.ResponseWriter, r *http.Request) {
 			Value: v,
 			Path:  "/",
 		})
+	}
+	if *logs {
+		log.Println("SetCookies", r.URL.Query())
 	}
 	w.Header().Set("Location", "/cookies")
 	w.WriteHeader(http.StatusFound)
@@ -305,6 +332,9 @@ func DeleteCookiesHandler(w http.ResponseWriter, r *http.Request) {
 			Expires: time.Unix(0, 0),
 			MaxAge:  0,
 		})
+	}
+	if *logs {
+		log.Println("DeleteCookies", r.URL.Query())
 	}
 	w.Header().Set("Location", "/cookies")
 	w.WriteHeader(http.StatusFound)
@@ -324,7 +354,7 @@ func DripHandler(w http.ResponseWriter, r *http.Request) {
 		var err error
 		retCode, err = strconv.Atoi(r.URL.Query().Get("code"))
 		if err != nil {
-			writeErrorJSON(w, errors.New("failed to parse 'code'"))
+			writeErrorJSON(w, errors.New("failed to parse 'code'"), logs)
 			return
 		}
 		w.WriteHeader(retCode)
@@ -333,7 +363,7 @@ func DripHandler(w http.ResponseWriter, r *http.Request) {
 	if delayStr != "" { // optional: initial delay
 		delaySec, err := strconv.ParseFloat(r.URL.Query().Get("delay"), 64)
 		if err != nil {
-			writeErrorJSON(w, errors.New("failed to parse 'delay'"))
+			writeErrorJSON(w, errors.New("failed to parse 'delay'"), logs)
 			return
 		}
 		delayMs := (time.Second / time.Millisecond) * time.Duration(delaySec)
@@ -353,6 +383,9 @@ func DripHandler(w http.ResponseWriter, r *http.Request) {
 // CacheHandler returns 200 with the response of /get unless an If-Modified-Since
 //or If-None-Match header is provided, when it returns a 304.
 func CacheHandler(w http.ResponseWriter, r *http.Request) {
+	if *logs {
+		log.Println("Cache")
+	}
 	if r.Header.Get("If-Modified-Since") != "" || r.Header.Get("If-None-Match") != "" {
 		w.WriteHeader(http.StatusNotModified)
 		return
@@ -364,6 +397,9 @@ func CacheHandler(w http.ResponseWriter, r *http.Request) {
 // the /get response.
 func SetCacheHandler(w http.ResponseWriter, r *http.Request) {
 	n, _ := strconv.Atoi(mux.Vars(r)["n"]) // shouldn't fail due to route pattern
+	if *logs {
+		log.Println("SetCache", n)
+	}
 	w.Header().Set("Cache-Control", fmt.Sprintf("public, max-age=%d", n))
 	GetHandler(w, r)
 }
@@ -382,8 +418,8 @@ func GZIPHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Encoding", "gzip")
 	ww := gzip.NewWriter(w)
 	defer ww.Close() // flush
-	if err := writeJSON(ww, v); err != nil {
-		writeErrorJSON(w, errors.Wrap(err, "failed to write json"))
+	if err := writeJSON(ww, v, logs); err != nil {
+		writeErrorJSON(w, errors.Wrap(err, "failed to write json"), logs)
 	}
 }
 
@@ -400,19 +436,26 @@ func DeflateHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Encoding", "deflate")
 	ww, _ := flate.NewWriter(w, flate.BestCompression)
 	defer ww.Close() // flush
-	if err := writeJSON(ww, v); err != nil {
-		writeErrorJSON(w, errors.Wrap(err, "failed to write json"))
+	if err := writeJSON(ww, v, logs); err != nil {
+		writeErrorJSON(w, errors.Wrap(err, "failed to write json"), logs)
 	}
 }
 
 // RobotsTXTHandler returns a robots.txt response.
 func RobotsTXTHandler(w http.ResponseWriter, r *http.Request) {
+	if *logs {
+		log.Println("RobotsTXT")
+	}
 	w.Header().Set("Content-Type", "text/plain")
 	fmt.Fprint(w, "User-agent: *\nDisallow: /deny\n")
 }
 
 // DenyHandler returns a plain-text response.
 func DenyHandler(w http.ResponseWriter, r *http.Request) {
+	if *logs {
+		log.Println("Deny")
+	}
+
 	w.Header().Set("Content-Type", "text/plain")
 	fmt.Fprint(w, `
           .-''''''-.
@@ -451,8 +494,8 @@ func basicAuthHandler(w http.ResponseWriter, r *http.Request, status int) {
 			Authenticated: true,
 			User:          user,
 		}
-		if err := writeJSON(w, v); err != nil {
-			writeErrorJSON(w, errors.Wrap(err, "failed to write json"))
+		if err := writeJSON(w, v, logs); err != nil {
+			writeErrorJSON(w, errors.Wrap(err, "failed to write json"), logs)
 		}
 	}
 }
@@ -474,7 +517,7 @@ type circle struct {
 }
 
 func (c *circle) Brightness(x, y float64) uint8 {
-	var dx, dy float64 = c.X - x, c.Y - y
+	var dx, dy float64 = c.X-x, c.Y-y
 	d := math.Sqrt(dx*dx+dy*dy) / c.R
 	if d > 1 {
 		return 0
@@ -486,7 +529,7 @@ func (c *circle) Brightness(x, y float64) uint8 {
 // Source: http://tech.nitoyon.com/en/blog/2016/01/07/go-animated-gif-gen/
 func GIFHandler(rw http.ResponseWriter, r *http.Request) {
 	var w, h int = 240, 240
-	var hw, hh float64 = float64(w / 2), float64(h / 2)
+	var hw, hh float64 = float64(w/2), float64(h/2)
 	circles := []*circle{{}, {}, {}}
 
 	var palette = []color.Color{
