@@ -1,7 +1,7 @@
 # go-httpbin
 
-[![Read GoDoc](https://godoc.org/github.com/ahmetb/go-httpbin?status.svg)](https://godoc.org/github.com/ahmetb/go-httpbin)
-[![Build Status](https://travis-ci.org/ahmetb/go-httpbin.svg?branch=master)](https://travis-ci.org/ahmetb/go-httpbin)
+[![Read GoDoc](https://godoc.org/github.com/NarHakobyan/go-httpbin?status.svg)](https://godoc.org/github.com/NarHakobyan/go-httpbin)
+[![Build Status](https://travis-ci.org/NarHakobyan/go-httpbin.svg?branch=master)](https://travis-ci.org/NarHakobyan/go-httpbin)
 
 A Go handler that lets you test your HTTP client, retry logic, streaming behavior, timeouts etc.
 with the endpoints of [httpbin.org][ht] locally in a [`net/http/httptest.Server`][hts].
@@ -52,7 +52,7 @@ package main
 import (
     "log"
     "net/http"
-    "github.com/ahmetb/go-httpbin"
+    "github.com/NarHakobyan/go-httpbin"
 )
 
 func main() {
@@ -71,7 +71,7 @@ import (
     "net/http"
     "net/http/httptest"
 
-    "github.com/ahmetb/go-httpbin"
+    "github.com/NarHakobyan/go-httpbin"
 )
 
 func TestDownload(t *testing.T) {
@@ -89,9 +89,9 @@ func TestDownload(t *testing.T) {
 
 go-httpbin works from the command line as well:
 
-```
-$ go get github.com/ahmetb/go-httpbin/cmd/httpbin
-$ $GOPATH/bin/httpbin -host :8080
+```bash
+$ go get -u github.com/NarHakobyan/go-httpbin/cmd/httpbin
+$ httpbin -host :8080
 ```
 
 # Development
@@ -128,4 +128,4 @@ limitations under the License.
 
 [ht]: https://httpbin.org/
 [hts]: https://godoc.org/net/http/httptest#Server
-[tw]: https://twitter.com/ahmetalpbalkan
+[tw]: https://twitter.com/NarHakobyan
